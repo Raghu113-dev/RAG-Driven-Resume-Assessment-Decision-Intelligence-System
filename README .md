@@ -82,6 +82,21 @@ The system compares resume content with a local recruiter/ATS guideline knowledg
 | Frontend | HTML, CSS, JavaScript |
 | Knowledge store | Local JSON file |
 
+## Pre-trained BiGRU Model
+
+The pre-trained BiGRU model is distributed as a GitHub Release asset to keep the binary file out of the source tree.
+
+- **Download model:** [BiGRU_Model.keras](https://github.com/Raghu113-dev/RAG-Driven-Resume-Assessment-Decision-Intelligence-System/releases/download/v1.0/BiGRU_Model.keras)
+- **Release page:** [v1.0 – BiGRU Model](https://github.com/Raghu113-dev/RAG-Driven-Resume-Assessment-Decision-Intelligence-System/releases/tag/v1.0)
+- **File size:** 41.5 MB
+- **SHA-256:** `d01fa32055cb8bb9404544983feeeefb850a2f4f493883007271afe763cb9645`
+
+Verify the downloaded file's checksum before loading it. On Windows PowerShell, run:
+
+```powershell
+Get-FileHash .\\BiGRU_Model.keras -Algorithm SHA256
+```
+
 ## Assessment Output
 
 The backend requests a JSON assessment with the following information:
