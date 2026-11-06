@@ -1,144 +1,282 @@
-# The Resume Desk — RAG Resume Screener
+# RAG-Driven Resume Assessment & Decision Intelligence System
 
-A real, working Retrieval-Augmented Generation (RAG) project that screens a resume PDF the way a strict recruiter + ATS system would: it tells you exactly what will get your resume rejected, and exactly what's working in your favor — with a live LLM call, not a canned response.
+An AI-assisted resume evaluation application that analyzes PDF resumes using **document parsing, measurable resume signals, retrieval-augmented generation (RAG), and a Groq-hosted large language model**.
 
-- **Backend:** Python (Flask) + a hand-built TF-IDF RAG pipeline + a free LLM on **Groq**
-- **Frontend:** plain HTML / CSS / JavaScript (no build step, no framework)
-- **No fake outputs:** every score, strength, and flaw in the UI comes directly from the JSON the LLM returns for the specific file you upload. If the API key isn't set or the call fails, you get a real error message — never a fabricated result.
+The system compares resume content with a local recruiter/ATS guideline knowledge base and produces a structured assessment with an overall score, ATS compatibility feedback, strengths, issues, and prioritized recommendations.
 
----
+> This is a resume feedback and learning tool. Its score is an AI-generated assessment, not an actual score from a company's Applicant Tracking System (ATS), and it does not predict or guarantee hiring outcomes.
 
-## How it actually works
+## Key Features
 
-```
-PDF upload
-   │
-   ▼
-resume_parser.py   → extracts raw text + real structural signals
-   │                  (word count, bullet count, quantified-metric count,
-   │                   contact-info detection, recognized section headers…)
-   ▼
-rag_engine.py      → TF-IDF retrieval over knowledge_base.json, a hand-written
-   │                  set of 40+ real recruiter/ATS screening rules, split into
-   │                  7 categories (formatting, content, skills, experience,
-   │                  education, red flags, contact/summary). The engine pulls
-   │                  the most relevant rules for THIS resume from each
-   │                  category, so the LLM's judgment is grounded in retrieved
-   │                  context rather than free-floating opinion.
-   ▼
-app.py             → builds a strict prompt (resume text + measured signals +
-   │                  retrieved rules) and calls a free Groq-hosted LLM,
-   │                  requiring a structured JSON verdict back.
-   ▼
-frontend/          → renders the verdict: an overall score, an ATS-compatibility
-                      score, strengths, flaws (with severity + fix), section-by-
-                      section notes, and the top 3 priority fixes.
-```
+- **PDF resume intake:** accepts PDF files up to 8 MB.
+- **Resume text extraction:** extracts text from PDF pages with `pdfplumber`.
+- **Document signal analysis:** measures page count, word count, bullet count, contact details, recognized sections, quantified metrics, and weak phrases.
+- **RAG-based guideline retrieval:** uses TF-IDF vectors and cosine similarity to retrieve relevant guidance from a local JSON knowledge base.
+- **Category-balanced retrieval:** retrieves screening guidelines across ATS formatting, content impact, skills, experience, education, red flags, and summary/contact details.
+- **LLM-powered assessment:** sends resume text, measured signals, and retrieved guidance to a Groq-hosted model.
+- **Structured feedback:** returns an overall score and verdict, ATS compatibility score, strengths, flaws with severity and suggested fixes, section feedback, and the top three priority improvements.
+- **Evidence-conscious output:** instructs the model to ground feedback in the uploaded resume and provided screening guidelines instead of inventing candidate details.
+- **Interactive web interface:** provides PDF upload, processing and error states, and a formatted results dashboard.
 
-This is a genuine RAG architecture: retrieval (TF-IDF over a curated knowledge base) feeding generation (the LLM call), not just a wrapper around a single prompt.
+## System Architecture
 
----
-
-## Project structure
-
-```
-resume-rag-screener/
-├── backend/
-│   ├── app.py                 # Flask API server
-│   ├── rag_engine.py          # TF-IDF retrieval engine
-│   ├── resume_parser.py       # PDF text + signal extraction
-│   ├── knowledge_base.json    # 40+ recruiter/ATS screening rules (the RAG corpus)
-│   ├── requirements.txt
-│   └── .env.example           # copy to .env and add your free Groq API key
-├── frontend/
-│   ├── index.html
-│   ├── style.css
-│   └── script.js
-├── samples/
-│   ├── sample_resume_REJECTED_John_Carter.pdf   # deliberately weak resume
-│   └── sample_resume_ACCEPTED_Sarah_Nguyen.pdf  # deliberately strong resume
-└── README.md
+```text
+                 ┌──────────────────────────┐
+                 │      Web Frontend       │
+                 │  HTML / CSS / JavaScript│
+                 └────────────┬─────────────┘
+                              │ PDF upload
+                              ▼
+                 ┌──────────────────────────┐
+                 │       Flask API          │
+                 │     POST /api/analyze    │
+                 └────────────┬─────────────┘
+                              ▼
+                 ┌──────────────────────────┐
+                 │     Resume Parser        │
+                 │        pdfplumber        │
+                 │  Text + document signals│
+                 └────────────┬─────────────┘
+                              ▼
+                 ┌──────────────────────────┐
+                 │       RAG Engine         │
+                 │  TF-IDF + cosine         │
+                 │  similarity retrieval    │
+                 └────────────┬─────────────┘
+                              │ Relevant guideline context
+                              ▼
+                 ┌──────────────────────────┐
+                 │       Groq LLM           │
+                 │ Resume + signals + rules│
+                 │    Structured JSON      │
+                 └────────────┬─────────────┘
+                              ▼
+                 ┌──────────────────────────┐
+                 │     Results Dashboard    │
+                 │ Score, verdict, feedback │
+                 └──────────────────────────┘
 ```
 
----
+### Processing Workflow
 
-## Setup
+1. A user selects a PDF resume in the frontend.
+2. The frontend uploads it to the Flask API using the `resume` form field.
+3. The backend validates the file type and enforces the 8 MB file-size limit.
+4. The resume parser extracts text and computes document-level signals.
+5. The RAG engine vectorizes the extracted resume text and retrieves relevant recruiter/ATS rules from the local knowledge base using TF-IDF and cosine similarity.
+6. The backend builds a prompt containing the resume text, measured signals, and retrieved guidelines.
+7. The Groq API generates a structured JSON assessment.
+8. The frontend renders the returned scores, verdict, strengths, issues, section feedback, and priority fixes.
 
-### 1. Get a free Groq API key
+## Technology Stack
 
-Groq gives fast, free-tier access to open models like Llama 3.3. Sign up at **https://console.groq.com/keys** and generate a key — no credit card required for the free tier.
+| Component | Technologies |
+|---|---|
+| Language | Python |
+| Backend API | Flask, Flask-CORS |
+| PDF extraction | pdfplumber |
+| Retrieval | TF-IDF, cosine similarity |
+| ML / text processing | scikit-learn |
+| Generative AI | Groq API, configurable chat model |
+| Configuration | python-dotenv |
+| Frontend | HTML, CSS, JavaScript |
+| Knowledge store | Local JSON file |
 
-### 2. Backend
+## Assessment Output
+
+The backend requests a JSON assessment with the following information:
+
+| Output | Description |
+|---|---|
+| Overall score | Model-generated score from 0 to 100 |
+| Verdict | Likely Accepted, Borderline, or Likely Rejected |
+| ATS compatibility | Score and resume-specific parsing risks |
+| Strengths | Positive findings and why they matter |
+| Flaws | Identified issues, severity, and actionable fixes |
+| Quantification examples | Sample rewrites illustrating where measurable impact could be added |
+| Section feedback | Notes for summary, experience, skills, education, and formatting |
+| Priority fixes | Three improvements to address first |
+| Document metadata | Page count, word count, bullet count, metric count, and recognized sections |
+
+Scores and verdicts are generated at request time by the LLM. They are not fixed benchmark results and may vary across runs.
+
+## Repository Structure
+
+The current repository uses capitalized folder names and includes spaces in some filenames:
+
+```text
+RAG-Driven-Resume-Assessment-Decision-Intelligence-System/
+├── Backend/
+│   ├── app.py
+│   ├── rag_engine.py
+│   ├── resume_parser.py
+│   ├── knowledge_base.json
+│   └── requirements (1).txt
+├── Frontend/
+│   ├── index (1).html
+│   ├── script .js
+│   └── style .css
+├── Samples/
+├── README.md
+└── .gitignore
+```
+
+The repository currently stores the README as `README .md` (with a space). GitHub's standard repository landing-page convention is `README.md`; consider renaming the file to `README.md` so it renders automatically.
+
+## Getting Started
+
+### Prerequisites
+
+- Python 3.9 or later (use a version compatible with the pinned dependencies).
+- A Groq API key.
+- Git.
+
+### 1. Clone the repository
 
 ```bash
-cd backend
+git clone https://github.com/Raghu113-dev/RAG-Driven-Resume-Assessment-Decision-Intelligence-System.git
+cd RAG-Driven-Resume-Assessment-Decision-Intelligence-System
+```
+
+### 2. Set up the backend environment
+
+**Windows PowerShell**
+
+```powershell
+cd Backend
 python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
-pip install -r requirements.txt
+.\venv\Scripts\Activate.ps1
+pip install -r "requirements (1).txt"
+```
 
-cp .env.example .env
-# open .env and paste your key:
-# GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxx
+**macOS / Linux**
 
+```bash
+cd Backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r "requirements (1).txt"
+```
+
+### 3. Configure the Groq API key
+
+Create a file named `.env` inside the `Backend/` directory:
+
+```env
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=llama-3.3-70b-versatile
+```
+
+Get an API key from the [Groq Console](https://console.groq.com/keys).
+
+**Security:** Never commit your real API key or upload your populated `.env` file. Keep it local and add `.env` to `.gitignore`.
+
+### 4. Start the backend
+
+From inside the `Backend/` directory, run:
+
+```bash
 python app.py
 ```
 
-The server starts at `http://localhost:5000`. Confirm it's alive:
+The Flask server starts on:
 
-```bash
-curl http://localhost:5000/api/health
+```text
+http://localhost:5000
 ```
 
-### 3. Frontend
+Check service status at:
 
-The frontend is plain static HTML/CSS/JS — no build step needed. Just open it:
+```text
+http://localhost:5000/api/health
+```
+
+### 5. Start the frontend
+
+Open a second terminal, navigate to the frontend folder, and start a static server:
 
 ```bash
-cd frontend
+cd Frontend
 python -m http.server 8080
-# then visit http://localhost:8080
 ```
 
-(Opening `index.html` directly by double-clicking also works in most browsers, but serving it avoids occasional local file/CORS quirks.)
+Open [http://localhost:8080](http://localhost:8080) in your browser.
 
-If you deploy the backend somewhere other than `localhost:5000`, update the `API_BASE` constant at the top of `frontend/script.js`.
+The frontend currently points to `http://localhost:5000`. For a deployed backend, update the `API_BASE` constant in `Frontend/script .js` to the backend URL.
 
-### 4. Try it
+## API Reference
 
-Upload one of the two sample PDFs in `samples/` to see the full flow, or upload your own resume.
+### Health Check
+
+**Endpoint:** `GET /api/health`
+
+Returns service status, whether the Groq key is configured, and the configured model name.
+
+### Analyze Resume
+
+**Endpoint:** `POST /api/analyze`
+
+**Content type:** `multipart/form-data`
+
+| Parameter | Type | Required | Details |
+|---|---|---|---|
+| `resume` | PDF file | Yes | Resume PDF, maximum 8 MB |
+
+The endpoint returns a JSON object containing the assessment fields listed above.
+
+**Example request using cURL:**
+
+```bash
+curl -X POST http://localhost:5000/api/analyze \
+  -F "resume=@sample_resume.pdf"
+```
+
+**Common error responses:**
+
+| HTTP status | Meaning |
+|---|---|
+| 400 | Missing file, empty filename, unsupported file type, or file exceeds size limit |
+| 422 | PDF cannot be read or contains no extractable text |
+| 500 | Groq API key is not configured |
+| 502 | Groq request failed or the model response could not be parsed as JSON |
+
+## RAG Implementation
+
+The retrieval component is implemented locally in `Backend/rag_engine.py`.
+
+- Loads recruiter/ATS guideline entries from `Backend/knowledge_base.json`.
+- Builds a TF-IDF representation using unigrams and bigrams with English stop words removed.
+- Converts the uploaded resume text into a query vector.
+- Calculates cosine similarity between the query and knowledge-base entries.
+- Retrieves up to three relevant entries for each configured category.
+- Passes the retrieved content to the LLM as context for the evaluation.
+
+This combines explicit retrieval with LLM-based generation, making the assessment grounded in the project's local guideline collection.
+
+## Limitations & Responsible Use
+
+- This is an educational and portfolio project, not an official ATS product or hiring decision tool.
+- The score is generated by an LLM and is not calibrated against a real company's hiring outcomes.
+- The application currently evaluates a resume against general screening guidelines; it does not perform job-description-specific matching.
+- Text-based PDF extraction may not work for scanned or image-only documents.
+- The assessment depends on the availability, configured model, and rate limits of the Groq API.
+- Do not use the result as the sole basis for hiring, rejection, or other consequential employment decisions. Human review is essential.
+
+## Potential Enhancements
+
+- Add job-description input and retrieve role-specific skill and keyword criteria.
+- Add explainability views showing which retrieved rules informed each recommendation.
+- Add automated tests for PDF validation, parser output, retrieval relevance, and API responses.
+- Add authentication, request logging, and deployment configuration.
+- Evaluate consistency and usefulness against a documented set of human-reviewed resumes.
+
+## Author
+
+**Raghu Datta Pailla**
+
+- GitHub: [Raghu113-dev](https://github.com/Raghu113-dev)
+- Repository: [RAG-Driven Resume Assessment & Decision Intelligence System](https://github.com/Raghu113-dev/RAG-Driven-Resume-Assessment-Decision-Intelligence-System)
 
 ---
 
-## Sample PDFs included
-
-| File | What it demonstrates |
-| --- | --- |
-| `sample_resume_REJECTED_John_Carter.pdf` | A fictional, deliberately weak resume: no quantified achievements, passive language ("responsible for"), no LinkedIn/portfolio link, vague dates, generic buzzwords, inconsistent formatting. Expect a low score. |
-| `sample_resume_ACCEPTED_Sarah_Nguyen.pdf` | A fictional, deliberately strong resume: quantified impact in nearly every bullet, clean ATS-safe formatting, consistent structure, tailored skills section, links to GitHub/LinkedIn. Expect a high score. |
-
-Both names and details are entirely fictional, created for demo purposes only.
-
-**Note:** the exact score and wording you see are generated live by the LLM at request time — they are not hardcoded, and will vary slightly between runs, just like a real human reviewer's notes would.
-
----
-
-## Customization
-
-- **Swap the model:** change `GROQ_MODEL` in `.env` to any chat model available on your Groq account (see https://console.groq.com/docs/models for the current free-tier list).
-- **Expand the knowledge base:** add more entries to `backend/knowledge_base.json`. Keep the `category` field consistent with one of the 7 existing categories (or add a new one and register it in `CATEGORIES` inside `rag_engine.py`).
-- **Tune retrieval depth:** change `TOP_K_PER_CATEGORY` in `rag_engine.py` to retrieve more or fewer guideline chunks per category.
-- **Target a specific job description:** you can extend `app.py` to accept an optional job description field and pass it into the prompt so the LLM tailors keyword-matching feedback to that specific posting.
-
----
-
-## Honest limitations
-
-- This tool gives a strong, structured, evidence-based second opinion — it is not a guarantee of what a specific company's ATS or recruiter will decide. Real hiring decisions also depend on the job description, the company, and factors outside a resume's text.
-- PDF text extraction can fail on resumes that are scanned images rather than real text; the tool will tell you this directly (and this is itself a real ATS-compatibility flaw worth fixing).
-- Free-tier LLM APIs can rate-limit under heavy use; if a request fails, the app surfaces the real error rather than a fake result.
-
----
-
-## License
-
-Built for demonstration/educational purposes. Use and modify freely.
+*Developed as a portfolio project to demonstrate practical skills in Python, NLP, information retrieval, RAG, generative AI, API development, and frontend integration.*
